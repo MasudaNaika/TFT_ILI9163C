@@ -86,8 +86,9 @@
 #include <Adafruit_GFX.h>
 
 //----- Define here witch display you own
-#define __144_RED_PCB__//128x128
-//#define __22_RED_PCB__//240x320
+//#define __144_RED_PCB__	//128x128
+//#define __22_RED_PCB__	//240x320
+#define __144_AITENDO_PCB__	//128x128
 //---------------------------------------
 
 #if defined(__SAM3X8E__)
@@ -131,6 +132,7 @@ you can copy those parameters and create setup for different displays.
 	#define __GAMMASET1		//uncomment for another gamma
 	#define __OFFSET		32//*see note 2
 	//Tested!
+
 #elif defined (__22_RED_PCB__)
 /*
 Like this one:
@@ -145,6 +147,22 @@ Not tested!
 	#define __COLORSPC		1// 1:GBR - 0:RGB
 	#define __GAMMASET1		//uncomment for another gamma
 	#define __OFFSET		0
+	
+#elif defined(__144_AITENDO_PCB__)
+/*
+This display:
+http://www.aitendo.com/product/3857
+M014C9163SPI
+*/
+	#define _TFTWIDTH  		128//the REAL W resolution of the TFT
+	#define _TFTHEIGHT 		128//the REAL H resolution of the TFT
+	#define _GRAMWIDTH      128
+	#define _GRAMHEIGH      128
+	#define _GRAMSIZE		_GRAMWIDTH * _GRAMHEIGH
+	#define __COLORSPC		1// 1:GBR - 0:RGB
+	#define __GAMMASET1		//uncomment for another gamma
+	#define __OFFSET		0
+	
 #else
 	#define _TFTWIDTH  		128//128
 	#define _TFTHEIGHT 		160//160

@@ -86,9 +86,9 @@
 #include <Adafruit_GFX.h>
 
 //----- Define here witch display you own
-//#define __144_RED_PCB__	//128x128
+#define __144_RED_PCB__	//128x128
 //#define __22_RED_PCB__	//240x320
-#define __144_AITENDO_PCB__	//128x128
+//#define __144_AITENDO_PCB__	//128x128
 //---------------------------------------
 
 #if defined(__SAM3X8E__)

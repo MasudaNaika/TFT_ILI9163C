@@ -76,14 +76,16 @@
 #ifndef _TFT_ILI9163CLIB_H_
 #define _TFT_ILI9163CLIB_H_
 
-#if ARDUINO >= 100
-	#include "Arduino.h"
-	#include "Print.h"
-#else
-	#include "WProgram.h"
-#endif
+#include "Arduino.h"
+#include "Print.h"
 
 #include <Adafruit_GFX.h>
+
+#define __AVR_MSPIM__
+
+#if !defined(__AVR_MSPIM__)
+	#include <SPI.h>
+#endif
 
 //----- Define here witch display you own
 #define __144_RED_PCB__	//128x128
@@ -91,25 +93,6 @@
 //#define __144_AITENDO_PCB__	//128x128
 //---------------------------------------
 
-#if defined(__SAM3X8E__)
-	#include <include/pio.h>
-	#define PROGMEM
-	#define pgm_read_byte(addr) (*(const unsigned char *)(addr))
-	#define pgm_read_word(addr) (*(const unsigned short *)(addr))
-	typedef unsigned char prog_uchar;
-#endif
-#ifdef __AVR__
-	#include <avr/pgmspace.h>
-#endif
-#if defined(__MK20DX128__) || defined(__MK20DX256__)
-	#define __DMASPI
-	#define CTAR_24MHz   (SPI_CTAR_PBR(0) | SPI_CTAR_BR(0) | SPI_CTAR_CSSCK(0) | SPI_CTAR_DBR)
-	#define CTAR_16MHz   (SPI_CTAR_PBR(1) | SPI_CTAR_BR(0) | SPI_CTAR_CSSCK(0) | SPI_CTAR_DBR)
-	#define CTAR_12MHz   (SPI_CTAR_PBR(0) | SPI_CTAR_BR(0) | SPI_CTAR_CSSCK(0))
-	#define CTAR_8MHz    (SPI_CTAR_PBR(1) | SPI_CTAR_BR(0) | SPI_CTAR_CSSCK(0))
-	#define CTAR_6MHz    (SPI_CTAR_PBR(0) | SPI_CTAR_BR(1) | SPI_CTAR_CSSCK(1))
-	#define CTAR_4MHz    (SPI_CTAR_PBR(1) | SPI_CTAR_BR(1) | SPI_CTAR_CSSCK(1))
-#endif
 
 //ILI9163C versions------------------------
 #if defined(__144_RED_PCB__)
@@ -132,7 +115,6 @@ you can copy those parameters and create setup for different displays.
 	#define __GAMMASET1		//uncomment for another gamma
 	#define __OFFSET		32//*see note 2
 	//Tested!
-
 #elif defined (__22_RED_PCB__)
 /*
 Like this one:
@@ -147,7 +129,7 @@ Not tested!
 	#define __COLORSPC		1// 1:GBR - 0:RGB
 	#define __GAMMASET1		//uncomment for another gamma
 	#define __OFFSET		0
-	
+
 #elif defined(__144_AITENDO_PCB__)
 /*
 This display:
@@ -233,25 +215,60 @@ M014C9163SPI
 #define CMD_GAMRSEL		0xF2//GAM_R_SEL
 
 
+#if defined(__AVR_ATmega32U4__)
+	#define UDRn		UDR1
+	#define UCSRnA		UCSR1A
+	#define TXCn		TXC1
+	#define UDREn		UDRE1
+	#define UCSRnB		UCSR1B
+	#define TXCIEn		TXCIE1
+	#define TXENn		TXEN1
+	#define UCSRnC		UCSR1C
+	#define UMSELn1		UMSEL11
+	#define UMSELn0		UMSEL10
+	#define UDORDn		UDORD1
+	#define UCPHAn		UCPHA1
+	#define UCPOLn		UCPOL1
+	#define UBRRn		UBRR1
+#else
+	#define UDRn		UDR0
+	#define UCSRnA		UCSR0A
+	#define TXCn		TXC0
+	#define TXCIEn		TXCIE0
+	#define UDREn		UDRE0
+	#define UCSRnB		UCSR0B
+	#define TXENn		TXEN0
+	#define UCSRnC		UCSR0C
+	#define UMSELn1		UMSEL01
+	#define UMSELn0		UMSEL00
+	#define UDORDn		UDORD0
+	#define UCPHAn		UCPHA0
+	#define UCPOLn		UCPOL0
+	#define UBRRn		UBRR0
+#endif
+
+
 class TFT_ILI9163C : public Adafruit_GFX {
 
  public:
 
 	TFT_ILI9163C(uint8_t cspin,uint8_t dcpin,uint8_t rstpin);
-	TFT_ILI9163C(uint8_t CS, uint8_t DC);//connect rst pin to VDD
+	TFT_ILI9163C(uint8_t cspin,uint8_t dcpin);	//connect rst pin to VDD
 	
 	void     	begin(void),
 				setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1),//graphic Addressing
 				setCursor(int16_t x,int16_t y),//char addressing
 				pushColor(uint16_t color),
-				fillScreen(uint16_t color=0x0000),
 				clearScreen(uint16_t color=0x0000),//same as fillScreen
-				drawPixel(int16_t x, int16_t y, uint16_t color),
-				drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color),
-				drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color),
-				fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color),
-				setRotation(uint8_t r),
-				invertDisplay(boolean i);
+				setRotation(uint8_t r);
+
+	virtual void	fillScreen(uint16_t color=0x0000),
+					drawPixel(int16_t x, int16_t y, uint16_t color),
+					drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color),
+					drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color),
+					fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color),
+					invertDisplay(boolean i);
+
   uint16_t 		Color565(uint8_t r, uint8_t g, uint8_t b);
   void 			setBitrate(uint32_t n);	
 
@@ -262,28 +279,17 @@ class TFT_ILI9163C : public Adafruit_GFX {
 	void		writecommand(uint8_t c);
 	void		writedata(uint8_t d);
 	void		writedata16(uint16_t d);
+	void		writedata32(uint16_t d1, uint16_t d2);
+	void		writedata16burst(uint16_t d, int32_t len);
+	void		waitSpiFree();
+	void		waitBufferFree();
 	void 		chipInit();
 	bool 		boundaryCheck(int16_t x,int16_t y);
 	void 		homeAddress();
-	#if defined(__AVR__)
-	void				spiwrite(uint8_t);
-	volatile uint8_t 	*dataport, *clkport, *csport, *rsport;
-	uint8_t 			_cs,_rs,_sid,_sclk,_rst;
-	uint8_t  			datapinmask, clkpinmask, cspinmask, rspinmask;
-	#endif //  #ifdef __AVR__
 
-	#if defined(__SAM3X8E__)
-	void				spiwrite(uint8_t);
-	Pio 				*dataport, *clkport, *csport, *rsport;
-	uint8_t 			_cs,_rs,_sid,_sclk,_rst;
-	uint32_t  			datapinmask, clkpinmask, cspinmask, rspinmask;
-	#endif //  #if defined(__SAM3X8E__)
-  
-	#if defined(__MK20DX128__) || defined(__MK20DX256__)
-	uint8_t 			_cs,_rs,_sid,_sclk,_rst;
-	uint8_t 			pcs_data, pcs_command;
-	uint32_t 			ctar;
-	volatile uint8_t 	*datapin, *clkpin, *cspin, *rspin;
-	#endif
+	volatile uint8_t	*csport, *dcport, *rstport;
+	uint8_t				cspinmask, dcpinmask, rstpinmask;
+	uint8_t				_cs, _dc, _rst;
+
 };
 #endif

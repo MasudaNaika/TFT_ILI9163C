@@ -1,54 +1,217 @@
 #include "TFT_ILI9163C.h"
-#include <limits.h>
-#include "pins_arduino.h"
-#include "wiring_private.h"
-#include <SPI.h>
+
+/**
+ * TFT_ILI9163C library for Arduino UNO / LEOPARD
+ * 
+ * @author Copyright (c) 2014, .S.U.M.O.T.O.Y., coded by Max MC Costa
+ * @author modified by masuda, Masuda Naika
+ */
 
 //constructors
 TFT_ILI9163C::TFT_ILI9163C(uint8_t cspin,uint8_t dcpin,uint8_t rstpin) : Adafruit_GFX(_TFTWIDTH,_TFTHEIGHT){
 	_cs   = cspin;
-	_rs   = dcpin;
+	_dc   = dcpin;
 	_rst  = rstpin;
-	_sid  = _sclk = 0;
 }
 
 
-TFT_ILI9163C::TFT_ILI9163C(uint8_t CS, uint8_t DC) : Adafruit_GFX(_TFTWIDTH, _TFTHEIGHT) {
-  _cs   = CS;
-  _rs   = DC;
+TFT_ILI9163C::TFT_ILI9163C(uint8_t cspin,uint8_t dcpin) : Adafruit_GFX(_TFTWIDTH, _TFTHEIGHT) {
+  _cs   = cspin;
+  _dc   = dcpin;
   _rst  = 0;
-  _sid  = _sclk = 0;
 }
 
-//Arduino Uno, Leonardo, Mega, Teensy 2.0, etc
-#ifdef __AVR__
+#if defined(__AVR_MSPIM__)
+inline void TFT_ILI9163C::waitSpiFree() {
 
-inline void TFT_ILI9163C::spiwrite(uint8_t c){
-    SPDR = c;
-    while(!(SPSR & _BV(SPIF)));
+	while ((UCSRnA & _BV(TXCn)) == 0);
+}
+
+inline void TFT_ILI9163C::waitBufferFree() {
+
+	while ((UCSRnA & _BV(UDREn)) == 0);
 }
 
 void TFT_ILI9163C::writecommand(uint8_t c){
-	*rsport &= ~rspinmask;//low
-	*csport &= ~cspinmask;//low
-	spiwrite(c);
-	*csport |= cspinmask;//hi
+	
+	*dcport &= ~dcpinmask;
+	*csport &= ~cspinmask;
+	
+	UCSRnA |= _BV(TXCn);
+	UDRn = c;
+	
+	waitSpiFree();
+	*csport |= cspinmask;
 }
 
 void TFT_ILI9163C::writedata(uint8_t c){
-	*rsport |=  rspinmask;
+
+	*dcport |= dcpinmask;
 	*csport &= ~cspinmask;
-	spiwrite(c);
+	
+	UCSRnA |= _BV(TXCn);
+	UDRn = c;
+	
+	waitSpiFree();
+	*csport |= cspinmask;
+}
+
+void TFT_ILI9163C::writedata16(uint16_t d){
+	
+	*dcport |= dcpinmask;
+	*csport &= ~cspinmask;
+	
+	UDRn = d >> 8;
+	waitBufferFree();
+	UCSRnA |= _BV(TXCn);
+	UDRn = d & 0xff;
+	
+	waitSpiFree();
+	*csport |= cspinmask;
+}
+
+void TFT_ILI9163C::writedata32(uint16_t d1, uint16_t d2){
+	
+	*dcport |= dcpinmask;
+	*csport &= ~cspinmask;
+	
+	UDRn = d1 >> 8;
+	waitBufferFree();
+	UDRn = d1 & 0xff;
+	waitBufferFree();
+	UDRn = d2 >> 8;
+	waitBufferFree();
+	UCSRnA |= _BV(TXCn);
+	UDRn = d2 & 0xff;
+	
+	waitSpiFree();
+	*csport |= cspinmask;
+}
+
+void TFT_ILI9163C::writedata16burst(uint16_t d, int32_t len) {
+	
+	if (len < 0) {
+		len = -len;
+	}
+	
+	*dcport |=  dcpinmask;
+	*csport &= ~cspinmask;
+	
+	uint8_t hi = d >> 8;
+	uint8_t lo = d & 0xff;
+	
+	while (len--) {
+		waitBufferFree();
+		UDRn = hi;
+		waitBufferFree();
+		UCSRnA |= _BV(TXCn);
+		UDRn = lo;
+	}
+	
+	waitSpiFree();
+	*csport |= cspinmask;
+}
+
+void TFT_ILI9163C::setBitrate(uint32_t n){
+	
+	uint8_t _ubrrn;
+	if (n >= 8000000) {
+		_ubrrn = 0;
+	} else if (n >= 4000000) {
+		_ubrrn = 1;
+	} else if (n >= 2000000) {
+		_ubrrn = 3;
+	} else {
+		_ubrrn = 7;
+	}
+	*csport |= cspinmask;                   // deselect slave
+	UCSRnB = 0;								// transmit disable
+    UBRRn = 0;                              // must be zero before enabling the transmitter
+    UCSRnA = _BV(TXCn);                     // any old transmit now complete
+    UCSRnC = _BV(UMSELn0) | _BV(UMSELn1);   // Master SPI mode, SPI mode = 0
+    UCSRnB = _BV(TXENn);      				// transmit enable, no TX complete interrupt
+    UBRRn = _ubrrn;                         // set bit rate
+}
+
+#else
+inline void TFT_ILI9163C::waitSpiFree() {
+
+	while((SPSR & _BV(SPIF)) == 0);
+}
+
+inline void TFT_ILI9163C::waitBufferFree() {
+}
+
+void TFT_ILI9163C::writecommand(uint8_t c){
+	
+	*dcport &= ~dcpinmask;	// command = low
+	*csport &= ~cspinmask;	// select slave = low
+	
+	SPDR = c;
+	waitSpiFree();
+	
+	*csport |= cspinmask;	// deselect slave = high
+}
+
+void TFT_ILI9163C::writedata(uint8_t c){
+	
+	*dcport |=  dcpinmask;
+	*csport &= ~cspinmask;
+	
+	SPDR = c;
+	waitSpiFree();
+	
 	*csport |= cspinmask;
 } 
 
 void TFT_ILI9163C::writedata16(uint16_t d){
-	*rsport |=  rspinmask;
+	
+	*dcport |=  dcpinmask;
 	*csport &= ~cspinmask;
-	spiwrite(d >> 8);
-	spiwrite(d);
+	
+	SPDR = d >> 8;
+	waitSpiFree();
+	SPDR = d & 0xff;
+	waitSpiFree();
+	
 	*csport |= cspinmask;
 } 
+
+void TFT_ILI9163C::writedata32(uint16_t d1, uint16_t d2){
+	
+	*dcport |=  dcpinmask;
+	*csport &= ~cspinmask;
+	
+	SPDR = d1 >> 8;
+	waitSpiFree();
+	SPDR = d1 & 0xff;
+	waitSpiFree();
+	SPDR = d2 >> 8;
+	waitSpiFree();
+	SPDR = d2 & 0xff;
+	waitSpiFree();
+	
+	*csport |= cspinmask;
+}
+
+void TFT_ILI9163C::writedata16burst(uint16_t d, int32_t len) {
+	
+	if (len < 0) {
+		len = -len;
+	}
+	
+	*dcport |=  dcpinmask;
+	*csport &= ~cspinmask;
+	
+	while (len--) {
+		SPDR = d >> 8;
+		waitSpiFree();
+		SPDR = d & 0xff;
+		waitSpiFree();
+	}
+	
+	*csport |= cspinmask;
+}
 
 void TFT_ILI9163C::setBitrate(uint32_t n){
 	if (n >= 8000000) {
@@ -61,186 +224,41 @@ void TFT_ILI9163C::setBitrate(uint32_t n){
 		SPI.setClockDivider(SPI_CLOCK_DIV16);
 	}
 }
-#elif defined(__SAM3X8E__)
-// Arduino Due
-
-inline void TFT_ILI9163C::spiwrite(uint8_t c){
-    SPI.transfer(c);
-}
-
-void TFT_ILI9163C::writecommand(uint8_t c){
-	rsport->PIO_CODR |=  rspinmask;//LO
-	csport->PIO_CODR  |=  cspinmask;//LO
-	spiwrite(c);
-	csport->PIO_SODR  |=  cspinmask;//HI
-}
-
-void TFT_ILI9163C::writedata(uint8_t c){
-	rsport->PIO_SODR |=  rspinmask;//HI
-	csport->PIO_CODR  |=  cspinmask;//LO
-	spiwrite(c);
-	csport->PIO_SODR  |=  cspinmask;//HI
-} 
-
-void TFT_ILI9163C::writedata16(uint16_t d){
-	rsport->PIO_SODR |=  rspinmask;//HI
-	csport->PIO_CODR  |=  cspinmask;//LO
-	spiwrite(d >> 8);
-	spiwrite(d);
-	csport->PIO_SODR  |=  cspinmask;//HI
-}
-
-
-void TFT_ILI9163C::setBitrate(uint32_t n){
-	uint32_t divider=1;
-	while (divider < 255) {
-		if (n >= 84000000 / divider) break;
-		divider = divider - 1;
-	}
-	SPI.setClockDivider(divider);
-}
-#elif defined(__MK20DX128__) || defined(__MK20DX256__)
-//Teensy 3.0 & 3.1  
-
-void TFT_ILI9163C::writecommand(uint8_t c){
-	
-	#if defined(__DMASPI)
-	SPI0.PUSHR = c | (pcs_command << 16) | SPI_PUSHR_CTAS(0);
-	while (((SPI0.SR) & (15 << 12)) > (3 << 12)) ; // wait if FIFO full
-	#else
-
-	#endif
-}
-
-void TFT_ILI9163C::writedata(uint8_t c){
-	#if defined(__DMASPI)
-	SPI0.PUSHR = c | (pcs_data << 16) | SPI_PUSHR_CTAS(0);
-	while (((SPI0.SR) & (15 << 12)) > (3 << 12)) ; // wait if FIFO full
-	#else
-
-	#endif
-}
-
-void TFT_ILI9163C::writedata16(uint16_t d){
-	#if defined(__DMASPI)
-	SPI0.PUSHR = d | (pcs_data << 16) | SPI_PUSHR_CTAS(1);
-	while (((SPI0.SR) & (15 << 12)) > (3 << 12)) ; // wait if FIFO full
-	#else
-
-	#endif
-
-}
-
-static bool spi_pin_is_cs(uint8_t pin){
-	if (pin == 2 || pin == 6 || pin == 9) return true;
-	if (pin == 10 || pin == 15) return true;
-	if (pin >= 20 && pin <= 23) return true;
-	return false;
-}
-
-static uint8_t spi_configure_cs_pin(uint8_t pin){
-	switch (pin) {
-		case 10: CORE_PIN10_CONFIG = PORT_PCR_MUX(2); return 0x01; // PTC4
-		case 2:  CORE_PIN2_CONFIG  = PORT_PCR_MUX(2); return 0x01; // PTD0
-		case 9:  CORE_PIN9_CONFIG  = PORT_PCR_MUX(2); return 0x02; // PTC3
-		case 6:  CORE_PIN6_CONFIG  = PORT_PCR_MUX(2); return 0x02; // PTD4
-		case 20: CORE_PIN20_CONFIG = PORT_PCR_MUX(2); return 0x04; // PTD5
-		case 23: CORE_PIN23_CONFIG = PORT_PCR_MUX(2); return 0x04; // PTC2
-		case 21: CORE_PIN21_CONFIG = PORT_PCR_MUX(2); return 0x08; // PTD6
-		case 22: CORE_PIN22_CONFIG = PORT_PCR_MUX(2); return 0x08; // PTC1
-		case 15: CORE_PIN15_CONFIG = PORT_PCR_MUX(2); return 0x10; // PTC0
-    }
-    return 0;
-}
-
-void TFT_ILI9163C::setBitrate(uint32_t n){
-	if (n >= 24000000) {
-		ctar = CTAR_24MHz;
-	} else if (n >= 16000000) {
-		ctar = CTAR_16MHz;
-	} else if (n >= 12000000) {
-		ctar = CTAR_12MHz;
-	} else if (n >= 8000000) {
-		ctar = CTAR_8MHz;
-	} else if (n >= 6000000) {
-		ctar = CTAR_6MHz;
-	} else {
-		ctar = CTAR_4MHz;
-	}
-	SIM_SCGC6 |= SIM_SCGC6_SPI0;
-	SPI0.MCR = SPI_MCR_MDIS | SPI_MCR_HALT;
-	SPI0.CTAR0 = ctar | SPI_CTAR_FMSZ(7);
-	SPI0.CTAR1 = ctar | SPI_CTAR_FMSZ(15);
-	SPI0.MCR = SPI_MCR_MSTR | SPI_MCR_PCSIS(0x1F) | SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF;
-}
-#endif //#if defined(TEENSY3.x)
+#endif
 
 
 void TFT_ILI9163C::begin(void) {
-#ifdef __AVR__
-	pinMode(_rs, OUTPUT);
+	
 	pinMode(_cs, OUTPUT);
+	pinMode(_dc, OUTPUT);
 	csport    = portOutputRegister(digitalPinToPort(_cs));
-	rsport    = portOutputRegister(digitalPinToPort(_rs));
+	dcport    = portOutputRegister(digitalPinToPort(_dc));
 	cspinmask = digitalPinToBitMask(_cs);
-	rspinmask = digitalPinToBitMask(_rs);
+	dcpinmask = digitalPinToBitMask(_dc);
+	
+// masuda^
+#if defined(__AVR_MSPIM__)
+	#if defined(__AVR_ATmega32U4__)
+		DDRD |= _BV(PIND3) + _BV(PIND5); // mega32u4 PIND3 = TXD, PIND5 = XCK
+	#else
+//		DDRD |= _BV(PIND1) + _BV(PIND4); // mega328p PIND1 = TXD, PIND4 = XCK
+		pinMode(1, OUTPUT);
+		pinMode(4, OUTPUT);
+	#endif
+	// 8 MHz MSPIM, MSB_FIRST, SPI_MODE0
+	setBitrate(1000000);
+#else
     SPI.begin();
     SPI.setClockDivider(SPI_CLOCK_DIV4); // 4 MHz (half speed)
     //Due defaults to 4mHz (clock divider setting of 21)
     SPI.setBitOrder(MSBFIRST);
     SPI.setDataMode(SPI_MODE0);
+#endif
+
 	// toggle RST low to reset; CS low so it'll listen to us
 	*csport &= ~cspinmask;
-#elif defined(__SAM3X8E__)
-	pinMode(_rs, OUTPUT);
-	pinMode(_cs, OUTPUT);
-	csport    = digitalPinToPort(_cs);
-	rsport    = digitalPinToPort(_rs);
-	cspinmask = digitalPinToBitMask(_cs);
-	rspinmask = digitalPinToBitMask(_rs);
-    SPI.begin();
-    SPI.setClockDivider(21); // 4 MHz
-    //Due defaults to 4mHz (clock divider setting of 21), but we'll set it anyway 
-    SPI.setBitOrder(MSBFIRST);
-    SPI.setDataMode(SPI_MODE0);
-	// toggle RST low to reset; CS low so it'll listen to us
-	csport ->PIO_CODR  |=  cspinmask; // Set control bits to LOW (idle)
-#elif defined(__MK20DX128__) || defined(__MK20DX256__)
-	_sid = 11;
-	_sclk = 13;
-	if (spi_pin_is_cs(_cs) && spi_pin_is_cs(_rs)
-	 && (_sid == 7 || _sid == 11)
-	 && (_sclk == 13 || _sclk == 14)
-	 && !(_cs ==  2 && _rs == 10) && !(_rs ==  2 && _cs == 10)
-	 && !(_cs ==  6 && _rs ==  9) && !(_rs ==  6 && _cs ==  9)
-	 && !(_cs == 20 && _rs == 23) && !(_rs == 20 && _cs == 23)
-	 && !(_cs == 21 && _rs == 22) && !(_rs == 21 && _cs == 22)) {
-		if (_sclk == 13) {
-			CORE_PIN13_CONFIG = PORT_PCR_MUX(2) | PORT_PCR_DSE;
-			SPCR.setSCK(13);
-		} else {
-			CORE_PIN14_CONFIG = PORT_PCR_MUX(2);
-			SPCR.setSCK(14);
-		}
-		if (_sid == 11) {
-			CORE_PIN11_CONFIG = PORT_PCR_MUX(2);
-			SPCR.setMOSI(11);
-		} else {
-			CORE_PIN7_CONFIG = PORT_PCR_MUX(2);
-			SPCR.setMOSI(7);
-		}
-		ctar = CTAR_12MHz;
-		pcs_data = spi_configure_cs_pin(_cs);
-		pcs_command = pcs_data | spi_configure_cs_pin(_rs);
-		SIM_SCGC6 |= SIM_SCGC6_SPI0;
-		SPI0.MCR = SPI_MCR_MDIS | SPI_MCR_HALT;
-		SPI0.CTAR0 = ctar | SPI_CTAR_FMSZ(7);
-		SPI0.CTAR1 = ctar | SPI_CTAR_FMSZ(15);
-		SPI0.MCR = SPI_MCR_MSTR | SPI_MCR_PCSIS(0x1F) | SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF;
-	} else {
-		//error
-	}
-#endif
+
+
   if (_rst != 0) {
     pinMode(_rst, OUTPUT);
     digitalWrite(_rst, HIGH);
@@ -428,9 +446,7 @@ void TFT_ILI9163C::colorSpace(uint8_t cspace) {
 
 void TFT_ILI9163C::clearScreen(uint16_t color) {
 	homeAddress();
-	for (int px=0;px < _GRAMSIZE; px++){
-		writedata16(color);
-	}
+	writedata16burst(color, _GRAMSIZE);
 }
 
 void TFT_ILI9163C::homeAddress() {
@@ -465,9 +481,7 @@ void TFT_ILI9163C::drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color
 	if (boundaryCheck(x,y)) return;
 	if (((y + h) - 1) >= _height) h = _height-y;
 	setAddrWindow(x,y,x,(y+h)-1);
-	while (h--) {
-		writedata16(color);
-	}
+	writedata16burst(color, h);
 }
 
 bool TFT_ILI9163C::boundaryCheck(int16_t x,int16_t y){
@@ -480,9 +494,7 @@ void TFT_ILI9163C::drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color
 	if (boundaryCheck(x,y)) return;
 	if (((x+w) - 1) >= _width)  w = _width-x;
 	setAddrWindow(x,y,(x+w)-1,y);
-	while (w--) {
-		writedata16(color);
-	}
+	writedata16burst(color, w);
 }
 
 void TFT_ILI9163C::fillScreen(uint16_t color) {
@@ -496,11 +508,7 @@ void TFT_ILI9163C::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t
 	if (((y + h) - 1) >= _height) h = _height - y;
 	setAddrWindow(x,y,(x+w)-1,(y+h)-1);
 	
-	for (y = h;y > 0;y--) {
-		for (x = w;x > 0;x--) {
-			writedata16(color);
-		}
-	}
+	writedata16burst(color, w * h);
 }
 
 
@@ -512,35 +520,21 @@ uint16_t TFT_ILI9163C::Color565(uint8_t r, uint8_t g, uint8_t b) {
 
 
 void TFT_ILI9163C::setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
+
 	writecommand(CMD_CLMADRS); // Column
-	if (rotation == 0){
-		writedata16(x0);
-		writedata16(x1);
-	} else if (rotation == 1){
-		writedata16(x0 + __OFFSET);
-		writedata16(x1 + __OFFSET);
-	} else if (rotation == 2){
-		writedata16(x0);
-		writedata16(x1);
+	if (rotation == 1) {
+		writedata32(x0 + __OFFSET, x1 + __OFFSET);
 	} else {
-		writedata16(x0);
-		writedata16(x1);
+		writedata32(x0, x1);
 	}
 
 	writecommand(CMD_PGEADRS); // Page
 	if (rotation == 0){
-		writedata16(y0 + __OFFSET);
-		writedata16(y1 + __OFFSET);
-	} else if (rotation == 1){
-		writedata16(y0);
-		writedata16(y1);
-	} else if (rotation == 2){
-		writedata16(y0);
-		writedata16(y1);
+		writedata32(y0 + __OFFSET, y1 + __OFFSET);
 	} else {
-		writedata16(y0);
-		writedata16(y1);
+		writedata32(y0, y1);
 	}
+	
 	writecommand(CMD_RAMWR); //Into RAM
 }
 

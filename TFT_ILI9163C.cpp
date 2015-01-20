@@ -246,7 +246,7 @@ void TFT_ILI9163C::begin(void) {
 		pinMode(4, OUTPUT);
 	#endif
 	// 8 MHz MSPIM, MSB_FIRST, SPI_MODE0
-	setBitrate(1000000);
+	setBitrate(4000000);
 #else
     SPI.begin();
     SPI.setClockDivider(SPI_CLOCK_DIV4); // 4 MHz (half speed)

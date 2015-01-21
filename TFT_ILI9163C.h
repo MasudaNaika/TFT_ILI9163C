@@ -83,9 +83,6 @@
 
 #define __AVR_MSPIM__
 
-#if !defined(__AVR_MSPIM__)
-	#include <SPI.h>
-#endif
 
 //----- Define here witch display you own
 #define __144_RED_PCB__	//128x128
@@ -252,18 +249,21 @@ M014C9163SPI
 
 class TFT_ILI9163C : public Adafruit_GFX {
 
- public:
+public:
 
 	TFT_ILI9163C(uint8_t cspin,uint8_t dcpin,uint8_t rstpin);
 	TFT_ILI9163C(uint8_t cspin,uint8_t dcpin);	//connect rst pin to VDD
 	
-	void		begin(void),
-				setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1),//graphic Addressing
-				setCursor(int16_t x,int16_t y),//char addressing
-				pushColor(uint16_t color),
-				clearScreen(uint16_t color=0x0000),//same as fillScreen
-				setRotation(uint8_t r);
-
+	void	begin(void),
+			setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1),//graphic Addressing
+			setCursor(int16_t x,int16_t y),//char addressing
+			pushColor(uint16_t color),
+			clearScreen(uint16_t color=0x0000),//same as fillScreen
+			setRotation(uint8_t r),
+			setBitrate(uint32_t n);
+			
+	uint16_t	Color565(uint8_t r, uint8_t g, uint8_t b);
+	
 	virtual void	fillScreen(uint16_t color=0x0000),
 					drawPixel(int16_t x, int16_t y, uint16_t color),
 					drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color),
@@ -271,10 +271,7 @@ class TFT_ILI9163C : public Adafruit_GFX {
 					fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color),
 					invertDisplay(boolean i);
 
-  uint16_t		Color565(uint8_t r, uint8_t g, uint8_t b);
-  void			setBitrate(uint32_t n);	
-
- private:
+private:
 	uint8_t		_Mactrl_Data;//container for the memory access control data
 	uint8_t		_colorspaceData;
 	void		colorSpace(uint8_t cspace);
@@ -289,9 +286,9 @@ class TFT_ILI9163C : public Adafruit_GFX {
 	bool		boundaryCheck(int16_t x,int16_t y);
 	void		homeAddress();
 
+	uint8_t		cspinmask, dcpinmask;
+	uint8_t		_cs, _dc, _rst;
 	volatile uint8_t	*csport, *dcport;
-	uint8_t				cspinmask, dcpinmask;
-	uint8_t				_cs, _dc, _rst;
 
 };
 #endif

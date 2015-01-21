@@ -1,5 +1,9 @@
 #include "TFT_ILI9163C.h"
 
+#if !defined(__AVR_MSPIM__)
+	#include <SPI.h>
+#endif
+
 /**
  * TFT_ILI9163C library for Arduino UNO / LEOPARD
  * 
@@ -16,9 +20,9 @@ TFT_ILI9163C::TFT_ILI9163C(uint8_t cspin,uint8_t dcpin,uint8_t rstpin) : Adafrui
 
 
 TFT_ILI9163C::TFT_ILI9163C(uint8_t cspin,uint8_t dcpin) : Adafruit_GFX(_TFTWIDTH, _TFTHEIGHT) {
-  _cs   = cspin;
-  _dc   = dcpin;
-  _rst  = 0;
+	_cs   = cspin;
+	_dc   = dcpin;
+	_rst  = 0;
 }
 
 #if defined(__AVR_MSPIM__)
@@ -126,11 +130,11 @@ void TFT_ILI9163C::setBitrate(uint32_t n){
 	}
 	*csport |= cspinmask;                   // deselect slave
 	UCSRnB = 0;								// transmit disable
-    UBRRn = 0;                              // must be zero before enabling the transmitter
-    UCSRnA = _BV(TXCn);                     // any old transmit now complete
-    UCSRnC = _BV(UMSELn0) | _BV(UMSELn1);   // Master SPI mode, SPI mode = 0
+	UBRRn = 0;                              // must be zero before enabling the transmitter
+	UCSRnA = _BV(TXCn);                     // any old transmit now complete
+	UCSRnC = _BV(UMSELn0) | _BV(UMSELn1);   // Master SPI mode, SPI mode = 0
     UCSRnB = _BV(TXENn);      				// transmit enable, no TX complete interrupt
-    UBRRn = _ubrrn;                         // set bit rate
+	UBRRn = _ubrrn;                         // set bit rate
 }
 
 #else
@@ -250,26 +254,26 @@ void TFT_ILI9163C::begin(void) {
 	// 8 MHz MSPIM, MSB_FIRST, SPI_MODE0
 	setBitrate(4000000);
 #else
-    SPI.begin();
-    SPI.setClockDivider(SPI_CLOCK_DIV4); // 4 MHz (half speed)
-    //Due defaults to 4mHz (clock divider setting of 21)
-    SPI.setBitOrder(MSBFIRST);
-    SPI.setDataMode(SPI_MODE0);
+	SPI.begin();
+	SPI.setClockDivider(SPI_CLOCK_DIV4); // 4 MHz (half speed)
+	//Due defaults to 4mHz (clock divider setting of 21)
+	SPI.setBitOrder(MSBFIRST);
+	SPI.setDataMode(SPI_MODE0);
 #endif
 
 	// toggle RST low to reset; CS low so it'll listen to us
 	*csport &= ~cspinmask;
 
 
-  if (_rst != 0) {
-    pinMode(_rst, OUTPUT);
-    digitalWrite(_rst, HIGH);
-    delay(1);
-    digitalWrite(_rst, LOW);
-    delay(1);
-    digitalWrite(_rst, HIGH);
-    delay(120);
-  }
+	if (_rst != 0) {
+		pinMode(_rst, OUTPUT);
+		digitalWrite(_rst, HIGH);
+		delay(1);
+		digitalWrite(_rst, LOW);
+		delay(1);
+		digitalWrite(_rst, HIGH);
+		delay(120);
+	}
 
 /*
 7) MY:  1(bottom to top), 0(top to bottom) 	Row Address Order
@@ -291,9 +295,9 @@ void TFT_ILI9163C::begin(void) {
 	 0 | 1 | 1 | 0 | 1 | 0 | 0 | 0	//XY exchange
 	 1 | 1 | 1 | 0 | 1 | 0 | 0 | 0
 */
-  _Mactrl_Data = 0b00000000;
-  _colorspaceData = __COLORSPC;//start with default data;
-  chipInit();
+	_Mactrl_Data = 0b00000000;
+	_colorspaceData = __COLORSPC;//start with default data;
+	chipInit();
 }
 
 

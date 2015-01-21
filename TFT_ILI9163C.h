@@ -215,7 +215,8 @@ M014C9163SPI
 #define CMD_GAMRSEL		0xF2//GAM_R_SEL
 
 
-#if defined(__AVR_ATmega32U4__)
+//#if defined(__AVR_ATmega32U4__)
+#if defined(UDR1)
 	#define UDRn		UDR1
 	#define UCSRnA		UCSR1A
 	#define TXCn		TXC1

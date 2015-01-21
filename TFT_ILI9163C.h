@@ -106,14 +106,15 @@ I solved by setup several parameters that dinamically fix the resolution as need
 the parameters for this diplay. If you have a strain or a correct display (can happen with chinese)
 you can copy those parameters and create setup for different displays.
 */
-	#define _TFTWIDTH  		128//the REAL W resolution of the TFT
-	#define _TFTHEIGHT 		128//the REAL H resolution of the TFT
-	#define _GRAMWIDTH      128
-	#define _GRAMHEIGH      160
-	#define _GRAMSIZE		_GRAMWIDTH * _GRAMHEIGH//*see note 1
-	#define __COLORSPC		1// 1:GBR - 0:RGB
+	#define _TFTWIDTH		128		//the REAL W resolution of the TFT
+	#define _TFTHEIGHT		128		//the REAL H resolution of the TFT
+	#define _GRAMWIDTH		128
+	#define _GRAMHEIGH		160
+//	#define _GRAMSIZE		_GRAMWIDTH * _GRAMHEIGH	//*see note 1
+	#define _GRAMSIZE		_TFTWIDTH * _TFTHEIGHT	//this is enough to fill visible area
+	#define __COLORSPC		1	// 1:GBR - 0:RGB
 	#define __GAMMASET1		//uncomment for another gamma
-	#define __OFFSET		32//*see note 2
+	#define __OFFSET		(_GRAMHEIGH - _TFTHEIGHT)	// 32 *see note 2
 	//Tested!
 #elif defined (__22_RED_PCB__)
 /*
@@ -121,12 +122,12 @@ Like this one:
 http://www.ebay.it/itm/2-2-Serial-SPI-TFT-LCD-Display-Module-240x320-Chip-ILI9340C-PCB-Adapter-SD-Card-/281304733556
 Not tested!
 */
-	#define _TFTWIDTH  		240//the REAL W resolution of the TFT
-	#define _TFTHEIGHT 		320//the REAL H resolution of the TFT
-	#define _GRAMWIDTH      240
-	#define _GRAMHEIGH      320
+	#define _TFTWIDTH		240		//the REAL W resolution of the TFT
+	#define _TFTHEIGHT		320		//the REAL H resolution of the TFT
+	#define _GRAMWIDTH		240
+	#define _GRAMHEIGH		320
 	#define _GRAMSIZE		_GRAMWIDTH * _GRAMHEIGH
-	#define __COLORSPC		1// 1:GBR - 0:RGB
+	#define __COLORSPC		1	// 1:GBR - 0:RGB
 	#define __GAMMASET1		//uncomment for another gamma
 	#define __OFFSET		0
 
@@ -136,22 +137,22 @@ This display:
 http://www.aitendo.com/product/3857
 M014C9163SPI
 */
-	#define _TFTWIDTH  		128//the REAL W resolution of the TFT
-	#define _TFTHEIGHT 		128//the REAL H resolution of the TFT
-	#define _GRAMWIDTH      128
-	#define _GRAMHEIGH      128
+	#define _TFTWIDTH		128		//the REAL W resolution of the TFT
+	#define _TFTHEIGHT		128		//the REAL H resolution of the TFT
+	#define _GRAMWIDTH		128
+	#define _GRAMHEIGH		128
 	#define _GRAMSIZE		_GRAMWIDTH * _GRAMHEIGH
-	#define __COLORSPC		1// 1:GBR - 0:RGB
+	#define __COLORSPC		1	// 1:GBR - 0:RGB
 	#define __GAMMASET1		//uncomment for another gamma
 	#define __OFFSET		0
 	
 #else
-	#define _TFTWIDTH  		128//128
-	#define _TFTHEIGHT 		160//160
-	#define _GRAMWIDTH      128
-	#define _GRAMHEIGH      160
+	#define _TFTWIDTH		128		//128
+	#define _TFTHEIGHT		160		//160
+	#define _GRAMWIDTH		128
+	#define _GRAMHEIGH		160
 	#define _GRAMSIZE		_GRAMWIDTH * _GRAMHEIGH
-	#define __COLORSPC		1// 1:GBR - 0:RGB
+	#define __COLORSPC		1	// 1:GBR - 0:RGB
 	#define __GAMMASET1
 	#define __OFFSET		0
 #endif
@@ -256,7 +257,7 @@ class TFT_ILI9163C : public Adafruit_GFX {
 	TFT_ILI9163C(uint8_t cspin,uint8_t dcpin,uint8_t rstpin);
 	TFT_ILI9163C(uint8_t cspin,uint8_t dcpin);	//connect rst pin to VDD
 	
-	void     	begin(void),
+	void		begin(void),
 				setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1),//graphic Addressing
 				setCursor(int16_t x,int16_t y),//char addressing
 				pushColor(uint16_t color),
@@ -270,13 +271,13 @@ class TFT_ILI9163C : public Adafruit_GFX {
 					fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color),
 					invertDisplay(boolean i);
 
-  uint16_t 		Color565(uint8_t r, uint8_t g, uint8_t b);
-  void 			setBitrate(uint32_t n);	
+  uint16_t		Color565(uint8_t r, uint8_t g, uint8_t b);
+  void			setBitrate(uint32_t n);	
 
  private:
 	uint8_t		_Mactrl_Data;//container for the memory access control data
 	uint8_t		_colorspaceData;
-	void 		colorSpace(uint8_t cspace);
+	void		colorSpace(uint8_t cspace);
 	void		writecommand(uint8_t c);
 	void		writedata(uint8_t d);
 	void		writedata16(uint16_t d);
@@ -284,12 +285,12 @@ class TFT_ILI9163C : public Adafruit_GFX {
 	void		writedata16burst(uint16_t d, int32_t len);
 	void		waitSpiFree();
 	void		waitBufferFree();
-	void 		chipInit();
-	bool 		boundaryCheck(int16_t x,int16_t y);
-	void 		homeAddress();
+	void		chipInit();
+	bool		boundaryCheck(int16_t x,int16_t y);
+	void		homeAddress();
 
-	volatile uint8_t	*csport, *dcport, *rstport;
-	uint8_t				cspinmask, dcpinmask, rstpinmask;
+	volatile uint8_t	*csport, *dcport;
+	uint8_t				cspinmask, dcpinmask;
 	uint8_t				_cs, _dc, _rst;
 
 };

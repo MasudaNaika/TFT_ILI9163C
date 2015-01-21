@@ -238,12 +238,14 @@ void TFT_ILI9163C::begin(void) {
 	
 // masuda^
 #if defined(__AVR_MSPIM__)
-	#if defined(__AVR_ATmega32U4__)
+	#if defined(UDR1)
 		DDRD |= _BV(PIND3) + _BV(PIND5); // mega32u4 PIND3 = TXD, PIND5 = XCK
+		pinMode(21, OUTPUT);	// PIND3
+		pinMode(22, OUTPUT);	// PIND5
 	#else
 //		DDRD |= _BV(PIND1) + _BV(PIND4); // mega328p PIND1 = TXD, PIND4 = XCK
-		pinMode(1, OUTPUT);
-		pinMode(4, OUTPUT);
+		pinMode(1, OUTPUT);		// PIND1
+		pinMode(4, OUTPUT);		// PIND4
 	#endif
 	// 8 MHz MSPIM, MSB_FIRST, SPI_MODE0
 	setBitrate(4000000);
@@ -262,11 +264,11 @@ void TFT_ILI9163C::begin(void) {
   if (_rst != 0) {
     pinMode(_rst, OUTPUT);
     digitalWrite(_rst, HIGH);
-    delay(500);
+    delay(1);
     digitalWrite(_rst, LOW);
-    delay(500);
+    delay(1);
     digitalWrite(_rst, HIGH);
-    delay(500);
+    delay(120);
   }
 
 /*
@@ -298,7 +300,7 @@ void TFT_ILI9163C::begin(void) {
 
 void TFT_ILI9163C::chipInit() {
 	writecommand(CMD_SWRESET);//software reset
-	delay(500);
+	delay(120);
 	writecommand(CMD_SLPOUT);//exit sleep
 	delay(5);
 	writecommand(CMD_PIXFMT);//Set Color Format 16bit   
@@ -407,27 +409,13 @@ void TFT_ILI9163C::chipInit() {
 	writecommand(CMD_VCOMOFFS);
 	writedata(0);//0x40
 	delay(1);
-  
-	writecommand(CMD_CLMADRS);//Set Column Address  
-	writedata(0x00); 
-	writedata(0X00); 
-	writedata(0X00); 
-	writedata(_GRAMWIDTH); 
-  
-	writecommand(CMD_PGEADRS);//Set Page Address  
-	writedata(0x00); 
-	writedata(0X00); 
-	writedata(0X00); 
-	writedata(_GRAMHEIGH); 
 
 	colorSpace(_colorspaceData);
 	setRotation(0);
-	writecommand(CMD_DISPON);//display ON 
 	delay(1);
-	writecommand(CMD_RAMWR);//Memory Write
-
-	delay(1);
+	
 	fillScreen(BLACK);
+	writecommand(CMD_DISPON);//display ON 
 }
 
 /*
@@ -540,7 +528,7 @@ void TFT_ILI9163C::setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t
 
 
 void TFT_ILI9163C::setRotation(uint8_t m) {
-	rotation = m % 4; // can't be higher than 3
+	rotation = m & 3;	// can't be higher than 3
 	switch (rotation) {
 	case 0:
 		_Mactrl_Data = 0b00001000;

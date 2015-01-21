@@ -270,7 +270,7 @@ void TFT_ILI9163C::begin(void) {
 		digitalWrite(_rst, HIGH);
 		delay(1);
 		digitalWrite(_rst, LOW);
-		delay(1);
+		delay(2);
 		digitalWrite(_rst, HIGH);
 		delay(120);
 	}

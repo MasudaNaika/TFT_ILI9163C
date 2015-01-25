@@ -94,9 +94,7 @@ void TFT_ILI9163C::writedata32(uint16_t d1, uint16_t d2){
 
 void TFT_ILI9163C::writedata16burst(uint16_t d, int32_t len) {
 	
-	if (len < 0) {
-		len = -len;
-	}
+	len = len < 0 ? -len : len;
 	
 	*dcport |=  dcpinmask;
 	*csport &= ~cspinmask;

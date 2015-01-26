@@ -96,22 +96,29 @@ void TFT_ILI9163C::writedata16burst(uint16_t d, int32_t len) {
 	
 	len = len < 0 ? -len : len;
 	
-	*dcport |=  dcpinmask;
-	*csport &= ~cspinmask;
-	
-	uint8_t hi = d >> 8;
-	uint8_t lo = d & 0xff;
-	
-	while (len--) {
+	if (len > 0) {
+		*dcport |=  dcpinmask;
+		*csport &= ~cspinmask;
+		
+		uint8_t hi = d >> 8;
+		uint8_t lo = d & 0xff;
+		
+		while (--len) {
+			waitBufferFree();
+			UDRn = hi;
+			waitBufferFree();
+			UDRn = lo;
+		}
+		
 		waitBufferFree();
 		UDRn = hi;
 		waitBufferFree();
 		UCSRnA |= _BV(TXCn);
 		UDRn = lo;
+		
+		waitSpiFree();
+		*csport |= cspinmask;
 	}
-	
-	waitSpiFree();
-	*csport |= cspinmask;
 }
 
 void TFT_ILI9163C::setBitrate(uint32_t n){
